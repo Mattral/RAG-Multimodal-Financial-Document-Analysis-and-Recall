@@ -149,6 +149,135 @@ The remaining steps include:
    2) encoding the image into base64 format,
       3) adding the image into the payload, and finally,
          4) sending the request to OpenAI and handling its responses.
-            We will use the same Element data structure to store each image's type (graph) and the text (descriptions of the graphs).
+We will use the same Element data structure to store each image's type (graph) and the text (descriptions of the graphs).
 
 ```
+graphs_description = []
+for idx, page in tqdm( enumerate( pages_png ) ):
+  # Getting the base64 string
+  base64_image = encode_image(f"./pages/{page}")
+
+  # Adjust Payload
+  tmp_payload = copy.deepcopy(payload)
+  tmp_payload['messages'][0]['content'].append({
+    "type": "image_url",
+    "image_url": {
+      "url": f "data:image/png;base64,{base64_image}"
+    }
+  })
+
+  try:
+    response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=tmp_payload)
+    response = response.json()
+    graph_data = json.loads( response['choices'][0]['message']['content'] )['graphs']
+
+    desc = [f"{page}\n" + '\n'.join(f"{key}: {item[key]}" for key in item.keys()) for item in graph_data]
+
+    graphs_description.extend( desc )
+
+  except:
+    # Skip the page if there is an error.
+    print("skipping... error in decoding.")
+    continue;
+
+graphs_description = [Element(type="graph", text=str(item)) for item in graphs_description]
+```
+
+## Store on Deep Lake
+This section will utilize the Deep Lake vector database to store the collected information and their embeddings. These embedding vectors convert pieces of text into numerical representations that capture their meaning, enabling similarity metrics such as cosine similarity to identify documents with close relationships. For instance, a prompt inquiring about a company's total revenue would result in high cosine similarity with a database document stating the revenue amount as X dollars.
+
+The data preparation is complete with the extraction of all crucial information from the PDF. The next step involves combining the output from the previous sections, resulting in a list containing 41 entries.
+
+
+```
+all_docs = categorized_elements + graphs_description
+
+print( len( all_docs ) )
+```
+
+``
+41
+``
+
+Given that we are using LlamaIndex, we can use its integration with Deep Lake to create and store the dataset. Begin by installing LlamaIndex and deeplake packages along with their dependencies.
+
+```
+!pip install -q llama_index==0.9.8 deeplake==3.8.8 cohere==4.37
+```
+
+Before using the libraries, it's essential to configure the OPENAI_API_KEY and ACTIVELOOP_TOKEN variables in the environment. Remember to substitute the placeholder values with your actual keys from the respective platforms.
+```
+import os
+
+os.environ["OPENAI_API_KEY"] = "<Your_OpenAI_Key>"
+os.environ["ACTIVELOOP_TOKEN"] = "<Your_Activeloop_Key>"
+```
+
+The integration of LlamaIndex enables the use of DeepLakeVectorStore class, which is designed to create a new dataset. Simply enter your organization ID, which by default is your Activeloop username, in the code provided below. This code will generate an empty dataset, ready to store documents.
+
+```
+
+from llama_index.vector_stores import DeepLakeVectorStore
+
+# TODO: use your organization id here. (by default, org id is your username)
+my_activeloop_org_id = "<YOUR-ACTIVELOOP-ORG-ID>"
+my_activeloop_dataset_name = "tsla_q3"
+dataset_path = f"hub://{my_activeloop_org_id}/{my_activeloop_dataset_name}"
+
+vector_store = DeepLakeVectorStore( dataset_path=dataset_path,
+																		runtime={"tensor_db": True},
+																		overwrite=False)
+```
+
+```
+Your Deep Lake dataset has been successfully created!
+```
+
+Next, we must pass the created vector store to a StorageContext class. This class serves as a wrapper to create storage from various data types. In our case, we're generating the storage from a vector database, which is accomplished simply by passing the created database instance using the .from_defaults() method.
+
+```
+from llama_index.storage.storage_context import StorageContext
+
+storage_context = StorageContext.from_defaults(vector_store=vector_store)
+```
+
+To store our preprocessed data, we must transform them into LlamaIndex Documents for compatibility with the library. The LlamaIndex Document is an abstract class that acts as a wrapper for various data types, including text files, PDFs, and database outputs. This wrapper facilitates the storage of valuable information with each sample. In our case, we can include a metadata tag to hold extra details like the data type (text, table, or graph) or denote document relationships. This approach simplifies the retrieval of these details later.
+
+As shown in the code below, you can employ built-in classes like SimpleDirectoryReader to automatically read files from a specified path or proceed manually. It will loop through our list containing all the extracted information and assign text and a category to each document.
+
+```
+from llama_index import Document
+
+documents = [Document(text=t.text, metadata={"category": t.type},) for t in categorized_elements]
+```
+
+Lastly, we can utilize the VectorStoreIndex class to generate embeddings for the documents and employ the database instance to store these values. By default, it uses OpenAI's Ada model to create the embeddings.
+```
+from llama_index import VectorStoreIndex
+
+index = VectorStoreIndex.from_documents(
+    documents, storage_context=storage_context
+)
+```
+
+```
+Uploading data to deeplake dataset.
+100%|██████████| 29/29 [00:00<00:00, 46.26it/s]
+\Dataset(path='hub://alafalaki/tsla_q3-nograph', tensors=['text', 'metadata', 'embedding', 'id'])
+
+  tensor      htype      shape      dtype  compression
+  -------    -------    -------    -------  ------- 
+   text       text      (29, 1)      str     None   
+ metadata     json      (29, 1)      str     None   
+ embedding  embedding  (29, 1536)  float32   None   
+    id        text      (29, 1)      str     None
+```
+
+
+The dataset has already been created and is hosted under the GenAI360 organization on the Activeloop hub. If you prefer not to use OpenAI APIs for generating embeddings, you can test the remaining codes using these publicly accessible datasets. Just substitute the dataset_path variable with the following: hub://genai360/tsla_q3.
+
+## Get Deep Memory Access
+As Step 0, please note that Deep Memory is a premium feature in Activeloop <b>paid plans</b>.
+
+Activate Deep Memory
+The Deep Memory feature from Activeloop enhances the retriever's accuracy. This improvement allows the model to access higher-quality data, leading to more detailed and informative responses. In earlier lessons, we already covered the basics of Deep Memory, so we will not dive into more details. The process begins by fetching chunks of data from the cloud and using GPT-3.5 to create specific questions for each chunk. These generated questions are then utilized in the Deep Memory training procedure to enhance the embedding quality. In our experience, this approach led to a 25% enhancement in performance.
