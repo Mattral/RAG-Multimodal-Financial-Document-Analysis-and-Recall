@@ -279,5 +279,196 @@ The dataset has already been created and is hosted under the GenAI360 organizati
 ## Get Deep Memory Access
 As Step 0, please note that Deep Memory is a premium feature in Activeloop <b>paid plans</b>.
 
-Activate Deep Memory
+## Activate Deep Memory
 The Deep Memory feature from Activeloop enhances the retriever's accuracy. This improvement allows the model to access higher-quality data, leading to more detailed and informative responses. In earlier lessons, we already covered the basics of Deep Memory, so we will not dive into more details. The process begins by fetching chunks of data from the cloud and using GPT-3.5 to create specific questions for each chunk. These generated questions are then utilized in the Deep Memory training procedure to enhance the embedding quality. In our experience, this approach led to a 25% enhancement in performance.
+
+Activeloop recommends using a dataset containing a minimum of 100 chunks, ensuring sufficient context for the model to enhance the embedding space effectively. So, the codes in this section are based on three PDF documents. For the complete code and execution steps to process three documents instead of one, please refer to the accompanying notebook.
+The processed dataset is available in the cloud on the GenAI360 organization. You can access using the following key: hub://genai360/tesla_quarterly_2023.
+
+The initial phase involves loading the pre-existing dataset and reading the text of each chunk along with its corresponding ID.
+
+```
+from llama_index.vector_stores import DeepLakeVectorStore
+
+# TODO: use your organization id here. (by default, org id is your username)
+my_activeloop_org_id = "<YOUR-ACTIVELOOP-ORG-ID>"
+my_activeloop_dataset_name = "LlamaIndex_tsla_q3"
+dataset_path = f"hub://{my_activeloop_org_id}/{my_activeloop_dataset_name}"
+
+db = DeepLakeVectorStore(
+    dataset_path=dataset_path,
+    runtime={"tensor_db": True},
+    read_only=True
+)
+
+# fetch dataset docs and ids if they exist (optional you can also ingest)
+docs = db.vectorstore.dataset.text.data(fetch_chunks=True, aslist=True)['value']
+ids = db.vectorstore.dataset.id.data(fetch_chunks=True, aslist=True)['value']
+print(len(docs))
+
+```
+
+```
+Deep Lake Dataset in hub://genai360/tesla_quarterly_2023 already exists, loading from the storage
+
+127
+```
+
+The following code segment outlines a function designed to use GPT-3.5 for generating questions corresponding to each data chunk. This involves crafting a specialized tool tailored for the OpenAI API. Primarily, the code configures suitable prompts for API requests to produce the questions and compiles them with their associated chunk IDs into a list.
+
+```
+import json
+import random
+from tqdm import tqdm
+from openai import OpenAI
+
+client = OpenAI()
+# Set the function JSON Schema for openai function calling feature
+tools = [
+    {
+        "type": "function",
+        "function": {
+            "name": "create_question_from_text",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "question": {
+                        "type": "string",
+                        "description": "Question created from the given text",
+                    },
+                },
+                "required": ["question"],
+            },
+            "description": "Create question from a given text.",
+        },
+    }
+]
+
+
+def generate_question(tools, text):
+    try:
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            tools=tools,
+            tool_choice={
+                "type": "function",
+                "function": {"name": "create_question_from_text"},
+            },
+            messages=[
+                {"role": "system", "content": "You are a world class expert for generating questions based on provided context. You make sure the question can be answered by the text."},
+                {
+                    "role": "user",
+                    "content": text,
+                },
+            ],
+        )
+
+        json_response = response.choices[0].message.tool_calls[0].function.arguments
+        parsed_response = json.loads(json_response)
+        question_string = parsed_response["question"]
+        return question_string
+    except:
+        question_string = "No question generated"
+        return question_string
+
+def generate_queries(docs: list[str], ids: list[str], n: int):
+
+    questions = []
+    relevances = []
+    pbar = tqdm(total=n)
+    while len(questions) < n:
+        # 1. randomly draw a piece of text and relevance id
+        r = random.randint(0, len(docs)-1)
+        text, label = docs[r], ids[r]
+
+        # 2. generate queries and assign and relevance id
+        generated_qs = [generate_question(tools, text)]
+        if generated_qs == ["No question generated"]:
+            continue
+
+        questions.extend(generated_qs)
+        relevances.extend([[(label, 1)] for _ in generated_qs])
+        pbar.update(len(generated_qs))
+
+    return questions[:n], relevances[:n]
+
+questions, relevances = generate_queries(docs, ids, n=20)
+```
+
+```
+100%|██████████| 20/20 [00:19<00:00,  1.02it/s]
+```
+
+Now, we can use the questions and the reference ids to activate the Deep Memory using the .deep_memory.train() method to improve the embedding representations. You can see the status of the training process using the .info method.
+
+```
+from langchain.embeddings.openai import OpenAIEmbeddings
+
+embeddings = OpenAIEmbeddings()
+
+job_id = db.vectorstore.deep_memory.train(
+    queries=questions,
+    relevance=relevances,
+    embedding_function=embeddings.embed_documents,
+)
+
+print( db.vectorstore.dataset.embedding.info )
+```
+
+```
+Starting DeepMemory training job
+Your Deep Lake dataset has been successfully created!
+Preparing training data for deepmemory:
+Creating 20 embeddings in 1 batches of size 20:: 100%|██████████| 1/1 [00:03<00:00,  3.23s/it]
+DeepMemory training job started. Job ID: 6581e3056a1162b64061a9a4
+
+{'deepmemory': {'6581e3056a1162b64061a9a4_0.npy': {'base_recall@10': 0.25, 'deep_memory_version': '0.2', 'delta': 0.25, 'job_id': '6581e3056a1162b64061a9a4_0', 'model_type': 'npy', 'recall@10': 0.5}, 'model.npy': {'base_recall@10': 0.25, 'deep_memory_version': '0.2', 'delta': 0.25, 'job_id': '6581e3056a1162b64061a9a4_0', 'model_type': 'npy', 'recall@10': 0.5}}}
+```
+
+The dataset is now prepared and compatible with the Deep Memory feature. It's crucial to note that the Deep Memory option must be actively set to true when using the dataset for inference.
+
+
+## Chatbot In Action
+In this section, we will use the created dataset as the retrieval object, providing the necessary context for the GPT-3.5-turbo model (the default choice for LlamaIndex) to answer the questions. Keep in mind that the inference outcomes presented in the subsequent section are derived from processing three PDF files, which are consistent with the sample codes provided in the notebook. To access the processed dataset containing all the PDF documents, use hub://genai360/tesla_quarterly_2023 as the dataset path in the code below.
+
+The DeepLakeVectorStore class also handles loading a dataset from the hub. The key distinction in the code below, compared to the previous sections, lies in the use of the .from_vector_store() method. This method creates indexes directly from the database rather than variables.
+
+```
+from llama_index.vector_stores import DeepLakeVectorStore
+from llama_index.storage.storage_context import StorageContext
+from llama_index import VectorStoreIndex
+
+vector_store = DeepLakeVectorStore(dataset_path=dataset_path, overwrite=False)
+storage_context = StorageContext.from_defaults(vector_store=vector_store)
+
+index = VectorStoreIndex.from_vector_store(
+    vector_store, storage_context=storage_context
+)
+```
+
+We can now use the .as_query_engine() method of the index variables to establish a query engine. This will allow us to ask questions from various data sources. Notice the vector_store_kwargs argument, which activates the deep_memory feature by setting it to True. This step is essential for enabling the feature on the retriever. The .query() method takes a prompt and searches for the most relevant data points within the database to construct an answer.
+
+
+```
+query_engine = index.as_query_engine(vector_store_kwargs={"deep_memory": True})
+response = query_engine.query(
+    "What are the trends in vehicle deliveries?",
+)
+```
+```
+The trends in vehicle deliveries on the Quarter 3 report show an increasing trend over the quarters.
+```
+
+<img align="center" src="trend.avif" alt="banner">
+
+As observed, the chatbot effectively utilized the data from the descriptions of the graphs we generated in the report. On the right, there's a screenshot of the bar chart which the chatbot referenced to generate its response.
+
+Additionally, we conducted an experiment where we compiled the same dataset but excluded the graph descriptions. This dataset can be accessed via hub://genai360/tesla_quarterly_2023-nograph path. The purpose was to determine whether including the descriptions aids the chatbot's performance.
+
+```
+In quarter 3, there was a decrease in Model S/X deliveries compared to the previous quarter, with a 14% decline. However, there was an increase in Model 3/Y deliveries, with a 29% growth. Overall, total deliveries in quarter 3 increased by 27% compared to the previous quarter.
+```
+
+You'll observe that the chatbot points to incorrect text segments. Despite the answer being contextually similar, it doesn't provide the correct answer. The graph shows an upward trend, a detail that might not have been mentioned in the report's text.
+
+
