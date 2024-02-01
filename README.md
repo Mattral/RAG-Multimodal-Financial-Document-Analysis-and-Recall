@@ -23,4 +23,7 @@ apt-get -qq install tesseract-ocr
 pip install -q unstructured[all-docs]==0.11.0 fastapi==0.103.2 kaleido==0.2.1 uvicorn==0.24.0.post1 typing-extensions==4.5.0 pydantic==1.10.13
 ```
 
-These packages are easy to install on Linux and Mac operating systems using apt-get and brew. However, they are more complex to install on Windows OS. You can follow the below instructions for a step-by-step guide if you use Windows. [[Installing Poppler on Windows](https://towardsdatascience.com/poppler-on-windows-179af0e50150)https://towardsdatascience.com/poppler-on-windows-179af0e50150] [[Installing Tesseract on Windows](https://indiantechwarrior.com/how-to-install-tesseract-on-windows/)https://indiantechwarrior.com/how-to-install-tesseract-on-windows/]
+These packages are easy to install on Linux and Mac operating systems using apt-get and brew. However, they are more complex to install on Windows OS. You can follow the below instructions for a step-by-step guide if you use Windows. 
+[ Installing Poppler on Windows 
+](https://towardsdatascience.com/poppler-on-windows-179af0e50150)[ Installing Tesseract on Windows
+](https://indiantechwarrior.com/how-to-install-tesseract-on-windows/)https://indiantechwarrior.com/how-to-install-tesseract-on-windows/
