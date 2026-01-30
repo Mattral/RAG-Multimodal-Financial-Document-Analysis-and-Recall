@@ -1,5 +1,52 @@
 # RAG-Multimodal-Financial-Document-Analysis-and-Recall
 
+## 🔍 Context & Motivation
+
+Large financial documents such as earnings reports, investor presentations, and regulatory filings are inherently **multimodal**. 
+Critical information is distributed across **narrative text, tables, and visual elements such as charts and graphs**. 
+
+While Retrieval-Augmented Generation (RAG) has become a standard approach for grounding large language models in external documents, **most RAG pipelines operate on text alone**. In practice, this leads to incomplete or misleading answers when key insights are encoded visually—for example, trends, growth patterns, or anomalies shown only in charts.
+
+This repository explores a **practical multimodal RAG pipeline** for financial document analysis, where **visual information is explicitly extracted, described, and incorporated into retrieval** alongside textual content.
+
+
+
+## 🎯 What This Repository Demonstrates
+
+This project demonstrates an end-to-end workflow for:
+
+- Parsing financial PDF documents into structured components (text, tables, and figures)
+- Using a vision-capable LLM to **describe charts and visual trends**
+- Storing both textual and visual-derived representations in a vector database
+- Enabling a RAG-based chatbot to answer questions that require **visual grounding**, not just text matching
+
+The core hypothesis explored here is that **augmenting retrieval with graph and chart descriptions materially improves answer quality** for financial queries that depend on trends or comparative patterns.
+
+
+## 🧭 Scope & Design Philosophy
+
+This repository is intentionally designed as a **clear, inspectable reference implementation**, rather than a production-ready framework or benchmark.
+
+Design choices prioritize:
+- Transparency over architectural complexity
+- Readability over optimization
+- Practical reproducibility over exhaustive evaluation
+
+While the example focuses on a small number of financial PDF documents, the techniques illustrated here generalize to other document-heavy domains where visual elements carry semantic meaning.
+
+
+## ⚠️ Limitations & Intended Use
+
+This project should be viewed as:
+- A **demonstration** of multimodal RAG concepts
+- A **starting point** for further experimentation or system design
+
+It is not intended to:
+- Serve as a comprehensive benchmark
+- Claim state-of-the-art performance
+- Replace domain-specific financial analysis tools
+
+Evaluation in this repository is qualitative and illustrative; users interested in rigorous benchmarking are encouraged to adapt the pipeline to standardized datasets and metrics.
 
 we will explore the application of the Retrieval-augmented Generation (RAG) method in processing a company's financial information contained within a PDF document. The process includes extracting critical data from a PDF file (like text, tables, graphs, etc.) and saving them in a vector store database such as Deep Lake for quick and efficient retrieval. Next, a RAG-enabled bot can access stored information to respond to end-user queries.
 
