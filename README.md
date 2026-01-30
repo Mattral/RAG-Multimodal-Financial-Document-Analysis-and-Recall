@@ -48,6 +48,8 @@ It is not intended to:
 
 Evaluation in this repository is qualitative and illustrative; users interested in rigorous benchmarking are encouraged to adapt the pipeline to standardized datasets and metrics.
 
+---
+
 we will explore the application of the Retrieval-augmented Generation (RAG) method in processing a company's financial information contained within a PDF document. The process includes extracting critical data from a PDF file (like text, tables, graphs, etc.) and saving them in a vector store database such as Deep Lake for quick and efficient retrieval. Next, a RAG-enabled bot can access stored information to respond to end-user queries.
 
 This task requires diverse tools, including [Unstructured.io](http://unstructures.io/) for text/table extraction, OpenAI's GPT-4V for extracting information from graphs, and LlamaIndex for developing a bot with retrieval capabilities. As previously mentioned, data preprocessing plays a significant role in the RAG process. So, we start by pulling data from a PDF document. The content of this repo focuses on demonstrating how to extract data from a single PDF document for ease of understanding. Nevertheless, the accompanying notebook provided after the repo will analyze three separate reports, offering a broader scope of information.
