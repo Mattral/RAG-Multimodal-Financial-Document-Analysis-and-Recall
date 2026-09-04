@@ -23,6 +23,8 @@ logger = structlog.get_logger(__name__)
 
 
 class QueryIntent(str, Enum):
+    """Query intent classification."""
+
     FACTUAL = "factual"  # "What was revenue in Q3?" — simple lookup
     NUMERIC = "numeric"  # "Calculate CAGR from 2020 to 2023" — needs PoT
     COMPARATIVE = "comparative"  # "Compare gross margins across segments" — multi-chunk
@@ -32,6 +34,8 @@ class QueryIntent(str, Enum):
 
 
 class QueryComplexity(str, Enum):
+    """Query complexity classification."""
+
     SIMPLE = "simple"  # Route to gpt-4o-mini
     MODERATE = "moderate"  # Route to gpt-4o-mini with larger context
     COMPLEX = "complex"  # Route to gpt-4o
@@ -55,7 +59,9 @@ class QueryAnalysis:
     use_agentic: bool = False
 
 
-# ── Compiled patterns ─────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────
+# Compiled patterns
+# ──────────────────────────────────────────────────────────────────────────────
 
 _STRONG_NUMERIC_RE = re.compile(r"\b(calculat|cagr|compound.annual|growth rate)\b", re.I)
 _NUMERIC_RE = re.compile(
@@ -98,7 +104,7 @@ _DOC_TYPE_RE = re.compile(
 _DATE_RE = re.compile(r"\b(Q[1-4]\s*\d{4}|FY\s*\d{4}|\d{4})\b")
 _COMPANY_RE = re.compile(
     r"\b(Tesla|Apple|Microsoft|Google|Amazon|Meta|NVIDIA|Goldman|JPMorgan|"
-    r"BlackRock|Berkshire|Apple|Netflix|Salesforce|Alphabet)\b",
+    r"BlackRock|Berkshire|Netflix|Salesforce|Alphabet)\b",
     re.I,
 )
 
@@ -107,11 +113,23 @@ class QueryAnalyzer:
     """Rule-based query analyzer with optional LLM rewrite for complex cases."""
 
     def __init__(self, enable_llm_rewrite: bool = False) -> None:
+        """Initialize the query analyzer.
+
+        Args:
+            enable_llm_rewrite: Whether to enable LLM-based query rewriting.
+        """
         self._llm_rewrite = enable_llm_rewrite
 
     def analyze(self, query: str, tenant_id: Optional[str] = None) -> QueryAnalysis:
-        """Fully analyze a query and return structured QueryAnalysis."""
+        """Fully analyze a query and return structured QueryAnalysis.
 
+        Args:
+            query: The query string to analyze.
+            tenant_id: Optional tenant identifier for logging.
+
+        Returns:
+            QueryAnalysis object with classification and extracted entities.
+        """
         # 1. Injection check (always first)
         injection_match = _INJECTION_RE.search(query)
         if injection_match:
@@ -175,6 +193,14 @@ class QueryAnalyzer:
         return result
 
     def _classify_intent(self, query: str) -> QueryIntent:
+        """Classify the intent of a query.
+
+        Args:
+            query: The query string.
+
+        Returns:
+            QueryIntent classification.
+        """
         if _AGENTIC_RE.search(query):
             return QueryIntent.AGENTIC
         if _STRONG_NUMERIC_RE.search(query):
@@ -188,6 +214,15 @@ class QueryAnalyzer:
         return QueryIntent.FACTUAL
 
     def _classify_complexity(self, query: str, intent: QueryIntent) -> QueryComplexity:
+        """Classify the complexity of a query.
+
+        Args:
+            query: The query string.
+            intent: The classified intent.
+
+        Returns:
+            QueryComplexity classification.
+        """
         if intent in (QueryIntent.AGENTIC, QueryIntent.COMPARATIVE):
             return QueryComplexity.COMPLEX
         if intent in (QueryIntent.TEMPORAL, QueryIntent.NUMERIC):
@@ -198,6 +233,14 @@ class QueryAnalyzer:
         return QueryComplexity.SIMPLE
 
     def _extract_entities(self, query: str) -> Tuple[Dict[str, Any], Dict[str, List[str]]]:
+        """Extract entities from the query.
+
+        Args:
+            query: The query string.
+
+        Returns:
+            Tuple of (filters dict, entities dict).
+        """
         filters: Dict[str, Any] = {}
         entities: Dict[str, List[str]] = {}
 
@@ -227,7 +270,15 @@ class QueryAnalyzer:
         return filters, entities
 
     def _rewrite_query(self, query: str, entities: Dict[str, List[str]]) -> str:
-        """Add disambiguating context for article/section references."""
+        """Add disambiguating context for article/section references.
+
+        Args:
+            query: The original query.
+            entities: Extracted entities.
+
+        Returns:
+            Rewritten query with additional context.
+        """
         if not entities.get("article_numbers") and not entities.get("sections"):
             return query
 
@@ -244,7 +295,14 @@ class QueryAnalyzer:
         return query
 
     def should_skip_vision(self, query: str) -> bool:
-        """Return True if query is clearly text-only (skip expensive vision path)."""
+        """Return True if query is clearly text-only (skip expensive vision path).
+
+        Args:
+            query: The query string.
+
+        Returns:
+            True if vision processing should be skipped.
+        """
         text_only_re = re.compile(
             r"\b(who signed|what date|legal entity|counterparty|governing law|"
             r"notice period|definition of|defined term|whereas|hereby)\b",
@@ -255,4 +313,13 @@ class QueryAnalyzer:
     def batch_analyze(
         self, queries: List[str], tenant_id: Optional[str] = None
     ) -> List[QueryAnalysis]:
+        """Analyze multiple queries.
+
+        Args:
+            queries: List of query strings.
+            tenant_id: Optional tenant identifier.
+
+        Returns:
+            List of QueryAnalysis results.
+        """
         return [self.analyze(q, tenant_id=tenant_id) for q in queries]

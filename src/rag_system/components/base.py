@@ -199,7 +199,9 @@ class BaseRetriever(abc.ABC):
 
     @property
     @abc.abstractmethod
-    def name(self) -> str: ...
+    def name(self) -> str:
+        """Human-readable name."""
+        ...
 
 
 class BaseReranker(abc.ABC):
@@ -217,7 +219,9 @@ class BaseReranker(abc.ABC):
 
     @property
     @abc.abstractmethod
-    def name(self) -> str: ...
+    def name(self) -> str:
+        """Human-readable name."""
+        ...
 
 
 class BaseGenerator(abc.ABC):
@@ -236,7 +240,9 @@ class BaseGenerator(abc.ABC):
 
     @property
     @abc.abstractmethod
-    def name(self) -> str: ...
+    def name(self) -> str:
+        """Human-readable name."""
+        ...
 
 
 class BaseEvaluator(abc.ABC):
@@ -254,7 +260,9 @@ class BaseEvaluator(abc.ABC):
 
     @property
     @abc.abstractmethod
-    def name(self) -> str: ...
+    def name(self) -> str:
+        """Human-readable name."""
+        ...
 
 
 # ---------------------------------------------------------------------------
@@ -266,11 +274,15 @@ class BaseEvaluator(abc.ABC):
 class Cacheable(Protocol):
     """Components that support cache invalidation."""
 
-    async def clear_cache(self) -> None: ...
+    async def clear_cache(self) -> None:
+        """Clear any cached data."""
+        ...
 
 
 @runtime_checkable
 class HealthCheckable(Protocol):
     """Components that expose a health check."""
 
-    async def health_check(self) -> Dict[str, Any]: ...
+    async def health_check(self) -> Dict[str, Any]:
+        """Return health check result."""
+        ...

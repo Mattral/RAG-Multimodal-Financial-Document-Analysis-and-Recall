@@ -42,7 +42,7 @@ console = Console()
 logger = structlog.get_logger(__name__)
 
 
-def _version_callback(value: bool):
+def _version_callback(value: bool) -> None:
     if value:
         console.print("[bold cyan]RAG Financial Multimodal[/bold cyan] [green]v2.0.0[/green]")
         console.print(
@@ -56,13 +56,13 @@ def main(
     version: bool = typer.Option(
         None, "--version", "-v", callback=_version_callback, is_eager=True
     ),
-):
+) -> None:
     pass
 
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────
 # INGEST
-# ────────────────────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────
 
 
 @app.command()
@@ -73,7 +73,7 @@ def ingest(
         bool, typer.Option("--no-vision", help="Skip vision/chart processing")
     ] = False,
     verbose: Annotated[bool, typer.Option("--verbose", help="Verbose logging")] = False,
-):
+) -> None:
     """📄 Ingest and index financial PDF documents."""
     setup_logging(
         level="DEBUG" if verbose else "INFO",
@@ -85,7 +85,7 @@ def ingest(
         console.print(f"[red]✗ Files not found:[/red] {missing}")
         raise typer.Exit(1)
 
-    async def _run():
+    async def _run() -> dict:
         from src.rag_system.pipeline import create_pipeline
 
         with Progress(
@@ -115,9 +115,9 @@ def ingest(
     console.print(table)
 
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────
 # QUERY
-# ────────────────────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────
 
 
 @app.command()
@@ -128,11 +128,11 @@ def query(
     show_sources: Annotated[bool, typer.Option("--show-sources", "-s")] = False,
     json_out: Annotated[bool, typer.Option("--json", help="Output raw JSON")] = False,
     verbose: Annotated[bool, typer.Option("--verbose")] = False,
-):
+) -> None:
     """🔍 Query indexed financial documents and get a grounded answer."""
     setup_logging(level="DEBUG" if verbose else "WARNING", format_type="json")
 
-    async def _run():
+    async def _run() -> dict:
         from src.rag_system.pipeline import create_pipeline
 
         with Progress(
@@ -195,9 +195,9 @@ def query(
         )
 
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────
 # EVALUATE
-# ────────────────────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────
 
 
 @app.command()
@@ -207,10 +207,10 @@ def evaluate(
     tenant: Annotated[str, typer.Option("--tenant", "-t")] = "eval",
     fail_on_regression: Annotated[bool, typer.Option("--fail-on-regression")] = True,
     output: Annotated[Optional[str], typer.Option("--output", "-o")] = None,
-):
+) -> None:
     """📊 Run quality evaluation against the golden dataset."""
 
-    async def _run():
+    async def _run() -> dict:
         from src.rag_system.components.evaluator import (
             GoldenDatasetRunner,
             RagasEvaluator,
@@ -238,16 +238,16 @@ def evaluate(
     )
     table.add_column("Metric")
     table.add_column("Value", style="cyan")
-    table.add_row("Run ID", report.run_id)
-    table.add_row("Samples", str(report.num_samples))
-    table.add_row("Pass Rate", f"{report.pass_rate:.1%}")
-    table.add_row("Avg Faithfulness", f"{report.avg_faithfulness:.3f}")
-    table.add_row("Avg Answer Relevancy", f"{report.avg_answer_relevancy:.3f}")
-    table.add_row("Avg Numeric Accuracy", f"{report.avg_numeric_accuracy:.3f}")
-    table.add_row("Avg Latency", f"{report.avg_latency_ms:.0f}ms")
-    table.add_row("Total Cost", f"${report.total_cost_usd:.4f}")
+    table.add_row("Run ID", report["run_id"])
+    table.add_row("Samples", str(report["num_samples"]))
+    table.add_row("Pass Rate", f"{report['pass_rate']:.1%}")
+    table.add_row("Avg Faithfulness", f"{report['avg_faithfulness']:.3f}")
+    table.add_row("Avg Answer Relevancy", f"{report['avg_answer_relevancy']:.3f}")
+    table.add_row("Avg Numeric Accuracy", f"{report['avg_numeric_accuracy']:.3f}")
+    table.add_row("Avg Latency", f"{report['avg_latency_ms']:.0f}ms")
+    table.add_row("Total Cost", f"${report['total_cost_usd']:.4f}")
     table.add_row(
-        "Regression", "⚠ YES" if report.regression_detected else "✅ None"
+        "Regression", "⚠ YES" if report["regression_detected"] else "✅ None"
     )
     console.print(table)
 
@@ -255,24 +255,24 @@ def evaluate(
         Path(output).write_text(
             json.dumps(
                 {
-                    "run_id": report.run_id,
-                    "pass_rate": report.pass_rate,
-                    "avg_faithfulness": report.avg_faithfulness,
-                    "regression_detected": report.regression_detected,
+                    "run_id": report["run_id"],
+                    "pass_rate": report["pass_rate"],
+                    "avg_faithfulness": report["avg_faithfulness"],
+                    "regression_detected": report["regression_detected"],
                 },
                 indent=2,
             )
         )
         console.print(f"[dim]Report saved to {output}[/dim]")
 
-    if fail_on_regression and report.regression_detected:
+    if fail_on_regression and report["regression_detected"]:
         console.print("[red]✗ Quality regression detected — CI gate FAILED[/red]")
         raise typer.Exit(1)
 
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────
 # SERVE
-# ────────────────────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────
 
 
 @app.command()
@@ -281,7 +281,7 @@ def serve(
     port: Annotated[int, typer.Option("--port")] = 8000,
     workers: Annotated[int, typer.Option("--workers")] = 1,
     reload: Annotated[bool, typer.Option("--reload")] = False,
-):
+) -> None:
     """🚀 Start the FastAPI server."""
     try:
         import uvicorn
@@ -295,21 +295,21 @@ def serve(
             reload=reload,
             factory=True,
         )
-    except ImportError:
+    except ImportError as exc:
         console.print("[red]uvicorn not installed. Run: pip install uvicorn[/red]")
-        raise typer.Exit(1) from None
+        raise typer.Exit(1) from exc
 
 
-# ────────────────────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────
 # HEALTH
-# ────────────────────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────
 
 
 @app.command()
-def health():
+def health() -> None:
     """🏥 Check system and component health."""
 
-    async def _run():
+    async def _run() -> dict:
         from src.rag_system.pipeline import create_pipeline
 
         pipeline = await create_pipeline()
@@ -326,7 +326,7 @@ def health():
     )
 
 
-def main_cli():
+def main_cli() -> None:
     app()
 
 
