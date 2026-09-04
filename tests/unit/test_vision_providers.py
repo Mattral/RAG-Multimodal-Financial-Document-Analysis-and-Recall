@@ -138,3 +138,95 @@ class TestGeminiVisionDescriber:
         d = GeminiVisionDescriber(model="gemini-2.5-flash")
         assert "gemini" in d.name
         assert "flash" in d.name
+
+
+class TestLocalVLLMDescriberSuccessPath:
+    """Target the 18 uncovered lines in local_vllm_adapter.py:
+    the successful HTTP response path (115-138), connection error path
+    (160-162), and describe_batch (170-177).
+    """
+
+    @pytest.mark.asyncio
+    async def test_describe_success_returns_document_element(self, tmp_path):
+        from unittest.mock import AsyncMock, MagicMock, patch
+        import json
+        from src.rag_system.components.vision.local_vllm_adapter import LocalVLLMDescriber
+
+        img = tmp_path / "chart.png"
+        img.write_bytes(b"PNG")
+
+        mock_resp = MagicMock()
+        mock_resp.raise_for_status = MagicMock()
+        mock_resp.json = MagicMock(return_value={
+            "choices": [{"message": {"content": "Revenue bar chart showing $23B in Q3."}}],
+            "usage": {"prompt_tokens": 250, "completion_tokens": 80},
+        })
+
+        mock_client = MagicMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.post = AsyncMock(return_value=mock_resp)
+
+        d = LocalVLLMDescriber(base_url="http://localhost:8080/v1")
+        with patch("httpx.AsyncClient", return_value=mock_client):
+            result = await d.describe(str(img), "tesla.pdf", tenant_id="acme")
+
+        assert result is not None
+        assert "Revenue bar chart" in result.text
+        assert result.source_document == "tesla.pdf"
+        assert result.tenant_id == "acme"
+
+    @pytest.mark.asyncio
+    async def test_describe_connection_error_returns_none(self, tmp_path):
+        import httpx
+        from unittest.mock import AsyncMock, MagicMock, patch
+        from src.rag_system.components.vision.local_vllm_adapter import LocalVLLMDescriber
+
+        img = tmp_path / "chart.png"
+        img.write_bytes(b"PNG")
+
+        mock_client = MagicMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.post = AsyncMock(side_effect=httpx.ConnectError("refused"))
+
+        d = LocalVLLMDescriber(base_url="http://localhost:9999/v1")
+        with patch("httpx.AsyncClient", return_value=mock_client):
+            result = await d.describe(str(img), "tesla.pdf")
+
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_describe_batch_filters_none_results(self, tmp_path):
+        from unittest.mock import AsyncMock, patch
+        from src.rag_system.components.vision.local_vllm_adapter import LocalVLLMDescriber
+        from src.rag_system.components.base import DocumentElement
+        from datetime import datetime, UTC
+        import hashlib
+
+        imgs = [str(tmp_path / f"img{i}.png") for i in range(3)]
+        for img in imgs:
+            with open(img, "wb") as f:
+                f.write(b"PNG")
+
+        fake_elem = DocumentElement(
+            type="graph", text="A chart description",
+            source_document="tesla.pdf",
+            ingest_timestamp=datetime.now(UTC).isoformat(),
+            content_hash=hashlib.sha256(b"A chart description").hexdigest()[:12],
+        )
+
+        d = LocalVLLMDescriber(base_url="http://localhost:8080/v1")
+        # First and last succeed, middle returns None
+        with patch.object(d, "describe", AsyncMock(side_effect=[fake_elem, None, fake_elem])):
+            results = await d.describe_batch(imgs, "tesla.pdf", tenant_id="acme")
+
+        assert len(results) == 2
+        assert all(r.text == "A chart description" for r in results)
+
+    @pytest.mark.asyncio
+    async def test_describe_batch_empty_input_returns_empty(self, tmp_path):
+        from src.rag_system.components.vision.local_vllm_adapter import LocalVLLMDescriber
+        d = LocalVLLMDescriber()
+        result = await d.describe_batch([], "tesla.pdf")
+        assert result == []
