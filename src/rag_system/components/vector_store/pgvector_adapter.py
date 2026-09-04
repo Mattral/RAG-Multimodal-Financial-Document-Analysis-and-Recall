@@ -81,7 +81,9 @@ class PGVectorAdapter(BaseVectorStore):
                 return
             self._pool = await asyncpg.create_pool(conn_str, min_size=2, max_size=10)
             async with self._pool.acquire() as conn:
-                await conn.execute(_INIT_SQL.format(table_suffix=self._table, dim=self._dim))
+                await conn.execute(
+                    _INIT_SQL.format(table_suffix=self._table, dim=self._dim)
+                )
             logger.info("pgvector_initialized", table=self._table, dim=self._dim)
         except Exception as exc:
             logger.error("pgvector_init_failed", error=str(exc))
@@ -116,7 +118,9 @@ class PGVectorAdapter(BaseVectorStore):
                         for e, vec in zip(elements, embeddings, strict=True)
                     ],
                 )
-            logger.info("pgvector_upsert_complete", num_chunks=len(elements), tenant_id=tid)
+            logger.info(
+                "pgvector_upsert_complete", num_chunks=len(elements), tenant_id=tid
+            )
         except Exception as exc:
             logger.error("pgvector_upsert_failed", error=str(exc))
             raise

@@ -55,9 +55,8 @@ async def _run(args):
     print(f"Avg Numeric Accuracy:{report.avg_numeric_accuracy:.3f}")
     print(f"Avg Latency:         {report.avg_latency_ms:.0f}ms")
     print(f"Total Cost:          ${report.total_cost_usd:.4f}")
-    print(
-        f"Regression Detected: {'YES ⚠' if report.regression_detected else 'No ✅'}"
-    )
+    regression_status = "YES ⚠" if report.regression_detected else "No ✅"
+    print(f"Regression Detected: {regression_status}")
     print("=" * 60)
 
     # Per-sample failures
