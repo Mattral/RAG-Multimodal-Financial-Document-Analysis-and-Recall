@@ -48,7 +48,8 @@ class GCSConnector(BaseConnector):
             return True
         except ImportError:
             logger.warning(
-                "google_cloud_storage_not_installed", detail="pip install google-cloud-storage"
+                "google_cloud_storage_not_installed",
+                detail="pip install google-cloud-storage",
             )
             return False
 
@@ -63,7 +64,9 @@ class GCSConnector(BaseConnector):
         try:
             client = await asyncio.to_thread(self._get_client)
             blobs = await asyncio.to_thread(
-                lambda: list(client.list_blobs(self._bucket_name, prefix=self._prefix))
+                lambda: list(
+                    client.list_blobs(self._bucket_name, prefix=self._prefix)
+                )
             )
             return [
                 f"gs://{self._bucket_name}/{b.name}"
@@ -75,13 +78,17 @@ class GCSConnector(BaseConnector):
             logger.error("gcs_list_failed", bucket=self._bucket_name, error=str(exc))
             return []
 
-    async def stream(self, tenant_id: str = "default") -> AsyncIterator[DiscoveredDocument]:
+    async def stream(
+        self, tenant_id: str = "default"
+    ) -> AsyncIterator[DiscoveredDocument]:
         if not self._check_deps():
             return
         try:
             client = await asyncio.to_thread(self._get_client)
             blobs = await asyncio.to_thread(
-                lambda: list(client.list_blobs(self._bucket_name, prefix=self._prefix))
+                lambda: list(
+                    client.list_blobs(self._bucket_name, prefix=self._prefix)
+                )
             )
             for blob in blobs:
                 if not any(blob.name.endswith(ext) for ext in self._extensions):
@@ -89,15 +96,21 @@ class GCSConnector(BaseConnector):
                 if blob.name.endswith("/"):
                     continue
                 filename = Path(blob.name).name
-                with tempfile.NamedTemporaryFile(suffix=Path(filename).suffix, delete=False) as tmp:
-                    await asyncio.to_thread(blob.download_to_filename, tmp.name)
+                with tempfile.NamedTemporaryFile(
+                    suffix=Path(filename).suffix, delete=False
+                ) as tmp:
+                    await asyncio.to_thread(
+                        blob.download_to_filename, tmp.name
+                    )
                     local_path = tmp.name
                 yield DiscoveredDocument(
                     source_uri=f"gs://{self._bucket_name}/{blob.name}",
                     local_path=local_path,
                     filename=filename,
                     size_bytes=blob.size or 0,
-                    last_modified=blob.updated.isoformat() if blob.updated else None,
+                    last_modified=blob.updated.isoformat()
+                    if blob.updated
+                    else None,
                     tenant_id=tenant_id,
                     metadata={
                         "connector": "gcs",
