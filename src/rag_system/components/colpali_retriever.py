@@ -37,7 +37,9 @@ def _maxsim(query_vecs: List[List[float]], doc_vecs: List[List[float]]) -> float
     except ImportError:
         total = 0.0
         for qv in query_vecs:
-            best = max(sum(a * b for a, b in zip(qv, dv, strict=True)) for dv in doc_vecs)
+            best = max(
+                sum(a * b for a, b in zip(qv, dv, strict=True)) for dv in doc_vecs
+            )
             total += best
         return total
 
@@ -79,7 +81,8 @@ class ColPaliRetriever(BaseRetriever):
             return True
         except ImportError:
             logger.warning(
-                "colpali_not_installed", detail="pip install colpali-engine torch torchvision"
+                "colpali_not_installed",
+                detail="pip install colpali-engine torch torchvision",
             )
             return False
 
@@ -102,7 +105,9 @@ class ColPaliRetriever(BaseRetriever):
                 device_map=device,
             ).eval()
             self._loaded = True
-            logger.info("colpali_model_loaded", model=self._model_name, device=device)
+            logger.info(
+                "colpali_model_loaded", model=self._model_name, device=device
+            )
             return True
         except Exception as exc:
             logger.error("colpali_model_failed", error=str(exc))
@@ -132,12 +137,16 @@ class ColPaliRetriever(BaseRetriever):
         vecs = vecs / vecs.norm(dim=-1, keepdim=True)
         return vecs.cpu().float().tolist()
 
-    async def build_index(self, image_paths: List[str], source_document: str) -> List[str]:
+    async def build_index(
+        self, image_paths: List[str], source_document: str
+    ) -> List[str]:
         steps = []
         if not await asyncio.to_thread(self._load_model):
             steps.append("ColPali unavailable — page images not indexed visually")
             return steps
-        steps.append(f"ColPali: embedding {len(image_paths)} pages with {self._model_name}...")
+        steps.append(
+            f"ColPali: embedding {len(image_paths)} pages with {self._model_name}..."
+        )
         for i, img_path in enumerate(image_paths):
             try:
                 vecs = await asyncio.to_thread(self._embed_image_sync, img_path)
@@ -150,7 +159,9 @@ class ColPaliRetriever(BaseRetriever):
                     )
                 )
             except Exception as exc:
-                logger.warning("colpali_embed_page_failed", page=i + 1, error=str(exc))
+                logger.warning(
+                    "colpali_embed_page_failed", page=i + 1, error=str(exc)
+                )
         steps.append(f"ColPali: indexed {len(image_paths)} pages")
         if self._index_path:
             await asyncio.to_thread(self._save_index)
@@ -217,8 +228,10 @@ class ColPaliRetriever(BaseRetriever):
         scored.sort(key=lambda x: x[0], reverse=True)
         return [
             RetrievedChunk(
-                text=f"[Visual page — {pe.source_document}, p.{pe.page_number}]"
-                f"\nColPali MaxSim: {score:.4f}",
+                text=(
+                    f"[Visual page — {pe.source_document}, p.{pe.page_number}]"
+                    f"\nColPali MaxSim: {score:.4f}"
+                ),
                 score=score,
                 source_document=pe.source_document,
                 page_number=pe.page_number,

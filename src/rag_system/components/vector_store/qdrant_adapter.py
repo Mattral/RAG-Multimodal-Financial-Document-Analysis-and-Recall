@@ -59,7 +59,10 @@ class QdrantAdapter(BaseVectorStore):
 
             return True
         except ImportError:
-            logger.error("qdrant_client_not_installed", detail="pip install qdrant-client>=1.9.0")
+            logger.error(
+                "qdrant_client_not_installed",
+                detail="pip install qdrant-client>=1.9.0",
+            )
             return False
 
     def _get_async_client(self):
@@ -76,7 +79,9 @@ class QdrantAdapter(BaseVectorStore):
             return
         try:
             await self._ensure_collection(tenant_id)
-            logger.info("qdrant_initialized", collection=self._collection_name(tenant_id))
+            logger.info(
+                "qdrant_initialized", collection=self._collection_name(tenant_id)
+            )
         except Exception as exc:
             logger.error("qdrant_init_failed", error=str(exc))
             raise
@@ -92,9 +97,13 @@ class QdrantAdapter(BaseVectorStore):
             await client.create_collection(
                 collection_name=collection,
                 vectors_config=VectorParams(size=dim, distance=Distance.COSINE),
-                hnsw_config=HnswConfigDiff(m=16, ef_construct=200, full_scan_threshold=10000),
+                hnsw_config=HnswConfigDiff(
+                    m=16, ef_construct=200, full_scan_threshold=10000
+                ),
             )
-            logger.info("qdrant_collection_created", collection=collection, dim=dim)
+            logger.info(
+                "qdrant_collection_created", collection=collection, dim=dim
+            )
 
     async def upsert(
         self,
@@ -111,7 +120,11 @@ class QdrantAdapter(BaseVectorStore):
         collection = self._collection_name(tenant_id)
         points = [
             PointStruct(
-                id=str(uuid.uuid5(uuid.NAMESPACE_URL, elem.content_hash or str(i))),
+                id=str(
+                    uuid.uuid5(
+                        uuid.NAMESPACE_URL, elem.content_hash or str(i)
+                    )
+                ),
                 vector=vec,
                 payload={
                     "text": elem.text,
@@ -126,8 +139,12 @@ class QdrantAdapter(BaseVectorStore):
             for i, (elem, vec) in enumerate(zip(elements, embeddings, strict=True))
         ]
         for i in range(0, len(points), 256):
-            await client.upsert(collection_name=collection, points=points[i : i + 256])
-        logger.info("qdrant_upsert_complete", num_points=len(points), tenant_id=tenant_id)
+            await client.upsert(
+                collection_name=collection, points=points[i : i + 256]
+            )
+        logger.info(
+            "qdrant_upsert_complete", num_points=len(points), tenant_id=tenant_id
+        )
 
     async def search(
         self,
@@ -145,7 +162,8 @@ class QdrantAdapter(BaseVectorStore):
         qdrant_filter = None
         if filters:
             conditions = [
-                FieldCondition(key=k, match=MatchValue(value=v)) for k, v in filters.items()
+                FieldCondition(key=k, match=MatchValue(value=v))
+                for k, v in filters.items()
             ]
             if conditions:
                 qdrant_filter = Filter(must=conditions)
