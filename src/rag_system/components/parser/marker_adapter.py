@@ -103,13 +103,19 @@ class MarkerParser(BaseParser):
                                 source_document=source,
                                 page_number=page_counter,
                                 ingest_timestamp=now,
-                                content_hash=hashlib.sha256(text.encode()).hexdigest()[:12],
+                                content_hash=hashlib.sha256(
+                                    text.encode()
+                                ).hexdigest()[:12],
                                 tenant_id=tenant_id,
                                 metadata={"parser": self.name},
                             )
                         )
                         # Overlap: carry last N chars into next chunk
-                        chunk_buffer = chunk_buffer[-self._chunk_overlap :] + "\n\n" + para
+                        chunk_buffer = (
+                            chunk_buffer[-self._chunk_overlap :]
+                            + "\n\n"
+                            + para
+                        )
                         page_counter += 1
                     else:
                         chunk_buffer = para
@@ -143,7 +149,9 @@ class MarkerParser(BaseParser):
             logger.error("marker_parse_failed", file=file_path, error=str(exc))
             return []
 
-    async def parse(self, file_path: str, tenant_id: Optional[str] = None) -> List[DocumentElement]:
+    async def parse(
+        self, file_path: str, tenant_id: Optional[str] = None
+    ) -> List[DocumentElement]:
         return await asyncio.to_thread(self._parse_sync, file_path, tenant_id)
 
     async def parse_batch(
