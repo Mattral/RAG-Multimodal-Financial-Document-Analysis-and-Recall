@@ -20,7 +20,13 @@ import structlog
 import typer
 from rich.console import Console
 from rich.panel import Panel
-from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
+from rich.progress import (
+    BarColumn,
+    Progress,
+    SpinnerColumn,
+    TextColumn,
+    TimeElapsedColumn,
+)
 from rich.syntax import Syntax
 from rich.table import Table
 
@@ -39,7 +45,9 @@ logger = structlog.get_logger(__name__)
 def _version_callback(value: bool):
     if value:
         console.print("[bold cyan]RAG Financial Multimodal[/bold cyan] [green]v2.0.0[/green]")
-        console.print("Enterprise-grade multimodal RAG for financial document analysis")
+        console.print(
+            "Enterprise-grade multimodal RAG for financial document analysis"
+        )
         raise typer.Exit()
 
 
@@ -52,9 +60,9 @@ def main(
     pass
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────────────────────────────
 # INGEST
-# ─────────────────────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────────────────────────────
 
 
 @app.command()
@@ -67,7 +75,10 @@ def ingest(
     verbose: Annotated[bool, typer.Option("--verbose", help="Verbose logging")] = False,
 ):
     """📄 Ingest and index financial PDF documents."""
-    setup_logging(level="DEBUG" if verbose else "INFO", format_type="text" if verbose else "json")
+    setup_logging(
+        level="DEBUG" if verbose else "INFO",
+        format_type="text" if verbose else "json",
+    )
 
     missing = [f for f in files if not Path(f).exists()]
     if missing:
@@ -104,9 +115,9 @@ def ingest(
     console.print(table)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────────────────────────────
 # QUERY
-# ─────────────────────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────────────────────────────
 
 
 @app.command()
@@ -124,15 +135,21 @@ def query(
     async def _run():
         from src.rag_system.pipeline import create_pipeline
 
-        with Progress(SpinnerColumn(), TextColumn("[cyan]Querying…"), console=console) as prog:
+        with Progress(
+            SpinnerColumn(), TextColumn("[cyan]Querying…"), console=console
+        ) as prog:
             prog.add_task("", total=None)
             pipeline = await create_pipeline()
-            return await pipeline.query(query_text=question, tenant_id=tenant, top_k=top_k)
+            return await pipeline.query(
+                query_text=question, tenant_id=tenant, top_k=top_k
+            )
 
     result = asyncio.run(_run())
 
     if json_out:
-        console.print(Syntax(json.dumps(result, indent=2, default=str), "json", theme="monokai"))
+        console.print(
+            Syntax(json.dumps(result, indent=2, default=str), "json", theme="monokai")
+        )
         return
 
     console.print(
@@ -178,16 +195,15 @@ def query(
         )
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────────────────────────────
 # EVALUATE
-# ─────────────────────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────────────────────────────
 
 
 @app.command()
 def evaluate(
-    dataset: Annotated[
-        str, typer.Option("--dataset", "-d")
-    ] = "evals/golden_datasets/financial_qa.jsonl",
+    dataset: Annotated[str, typer.Option("--dataset", "-d")]
+    = "evals/golden_datasets/financial_qa.jsonl",
     tenant: Annotated[str, typer.Option("--tenant", "-t")] = "eval",
     fail_on_regression: Annotated[bool, typer.Option("--fail-on-regression")] = True,
     output: Annotated[Optional[str], typer.Option("--output", "-o")] = None,
@@ -195,23 +211,31 @@ def evaluate(
     """📊 Run quality evaluation against the golden dataset."""
 
     async def _run():
-        from src.rag_system.components.evaluator import GoldenDatasetRunner, RagasEvaluator
+        from src.rag_system.components.evaluator import (
+            GoldenDatasetRunner,
+            RagasEvaluator,
+        )
         from src.rag_system.pipeline import create_pipeline
 
         pipeline = await create_pipeline()
         evaluator = RagasEvaluator()
         runner = GoldenDatasetRunner(
-            pipeline=pipeline, evaluator=evaluator, golden_dataset_path=dataset
+            pipeline=pipeline,
+            evaluator=evaluator,
+            golden_dataset_path=dataset,
         )
         return await runner.run(tenant_id=tenant)
 
     with Progress(
-        SpinnerColumn(), TextColumn("[cyan]Running evals…"), TimeElapsedColumn(), console=console
+        SpinnerColumn(), TextColumn("[cyan]Running evals…"), TimeElapsedColumn(),
+        console=console,
     ) as prog:
         prog.add_task("", total=None)
         report = asyncio.run(_run())
 
-    table = Table(title="📊 Eval Report", show_header=True, header_style="bold magenta")
+    table = Table(
+        title="📊 Eval Report", show_header=True, header_style="bold magenta"
+    )
     table.add_column("Metric")
     table.add_column("Value", style="cyan")
     table.add_row("Run ID", report.run_id)
@@ -222,7 +246,9 @@ def evaluate(
     table.add_row("Avg Numeric Accuracy", f"{report.avg_numeric_accuracy:.3f}")
     table.add_row("Avg Latency", f"{report.avg_latency_ms:.0f}ms")
     table.add_row("Total Cost", f"${report.total_cost_usd:.4f}")
-    table.add_row("Regression", "⚠ YES" if report.regression_detected else "✅ None")
+    table.add_row(
+        "Regression", "⚠ YES" if report.regression_detected else "✅ None"
+    )
     console.print(table)
 
     if output:
@@ -244,9 +270,9 @@ def evaluate(
         raise typer.Exit(1)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────────────────────────────
 # SERVE
-# ─────────────────────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────────────────────────────
 
 
 @app.command()
@@ -274,9 +300,9 @@ def serve(
         raise typer.Exit(1) from None
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────────────────────────────
 # HEALTH
-# ─────────────────────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────────────────────────────
 
 
 @app.command()

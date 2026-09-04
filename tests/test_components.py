@@ -5,6 +5,8 @@ utility modules work correctly as a system, replacing the legacy v1
 component-specific tests.
 """
 
+import re
+
 import pytest
 from pydantic import ValidationError
 
@@ -30,7 +32,7 @@ from src.rag_system.components.pot_executor import (
     PoTExecutor,
 )
 
-# ── Data Model Tests ─────────────────────────────────────────────────────────
+# ── Data Model Tests ────────────────────────────────────────────────────────
 
 
 class TestDocumentElement:
@@ -58,7 +60,9 @@ class TestDocumentElement:
             e.text = "mutated"  # type: ignore
 
     def test_roundtrip(self):
-        e = DocumentElement(type="graph", text="chart", source_document="d.pdf", page_number=3)
+        e = DocumentElement(
+            type="graph", text="chart", source_document="d.pdf", page_number=3
+        )
         restored = DocumentElement(**e.model_dump())
         assert restored.page_number == 3
 
@@ -191,8 +195,6 @@ async def test_pot_executor_all_templates():
     for name in FINANCIAL_TEMPLATES:
         template_code = FINANCIAL_TEMPLATES[name]
         # Replace placeholders with dummy values
-        import re
-
         dummy_code = re.sub(r"\{[^}]+\}", "10.0", template_code)
 
         # Validation passes...
@@ -228,14 +230,25 @@ class TestLayoutParserComponents:
 
         elements = [
             DocumentElement(
-                type="text", text="Narrative text.", source_document="d.pdf", page_number=1
+                type="text",
+                text="Narrative text.",
+                source_document="d.pdf",
+                page_number=1,
             ),
-            DocumentElement(type="table", text="| X | Y |", source_document="d.pdf", page_number=2),
             DocumentElement(
-                type="graph", text="Chart: bar chart.", source_document="d.pdf", page_number=3
+                type="table", text="| X | Y |", source_document="d.pdf", page_number=2
             ),
             DocumentElement(
-                type="image", text="Photo of facility.", source_document="d.pdf", page_number=4
+                type="graph",
+                text="Chart: bar chart.",
+                source_document="d.pdf",
+                page_number=3,
+            ),
+            DocumentElement(
+                type="image",
+                text="Photo of facility.",
+                source_document="d.pdf",
+                page_number=4,
             ),
         ]
         parser = LayoutAwareParser()
@@ -250,7 +263,10 @@ class TestLayoutParserComponents:
 
         elements = [
             DocumentElement(
-                type="table", text="| Revenue | $42B |", source_document="d.pdf", page_number=1
+                type="table",
+                text="| Revenue | $42B |",
+                source_document="d.pdf",
+                page_number=1,
             ),
         ]
         parser = LayoutAwareParser()

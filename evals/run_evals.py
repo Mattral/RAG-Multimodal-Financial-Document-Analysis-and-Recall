@@ -24,7 +24,10 @@ logger = structlog.get_logger(__name__)
 
 
 async def _run(args):
-    from src.rag_system.components.evaluator import GoldenDatasetRunner, RagasEvaluator
+    from src.rag_system.components.evaluator import (
+        GoldenDatasetRunner,
+        RagasEvaluator,
+    )
     from src.rag_system.pipeline import create_pipeline
 
     pipeline = await create_pipeline()
@@ -52,7 +55,9 @@ async def _run(args):
     print(f"Avg Numeric Accuracy:{report.avg_numeric_accuracy:.3f}")
     print(f"Avg Latency:         {report.avg_latency_ms:.0f}ms")
     print(f"Total Cost:          ${report.total_cost_usd:.4f}")
-    print(f"Regression Detected: {'YES ⚠' if report.regression_detected else 'No ✅'}")
+    print(
+        f"Regression Detected: {'YES ⚠' if report.regression_detected else 'No ✅'}"
+    )
     print("=" * 60)
 
     # Per-sample failures
@@ -62,7 +67,8 @@ async def _run(args):
         for r in failures[:5]:
             print(f"  Q: {r.question[:80]}")
             print(
-                f"     faithfulness={r.faithfulness:.2f}, numeric_accuracy={r.numeric_accuracy:.2f}"
+                f"     faithfulness={r.faithfulness:.2f}, "
+                f"numeric_accuracy={r.numeric_accuracy:.2f}"
             )
 
     # Save JSON report
@@ -87,7 +93,9 @@ async def _run(args):
 
 def main():
     parser = argparse.ArgumentParser(description="Run RAG quality evaluations")
-    parser.add_argument("--dataset", default="evals/golden_datasets/financial_qa.jsonl")
+    parser.add_argument(
+        "--dataset", default="evals/golden_datasets/financial_qa.jsonl"
+    )
     parser.add_argument("--output", default=None, help="Path to write JSON report")
     parser.add_argument("--regression-threshold", type=float, default=0.05)
     parser.add_argument("--fail-on-regression", action="store_true")

@@ -25,7 +25,7 @@ os.environ.setdefault("SECURITY_CONFIG__ENABLE_PII_REDACTION", "false")
 os.environ.setdefault("SECURITY_CONFIG__ENABLE_GUARDRAILS", "false")
 
 
-# ── Async event loop ──────────────────────────────────────────────────────────
+# ── Async event loop ────────────────────────────────────────────────────────
 @pytest.fixture(scope="session")
 def event_loop_policy():
     return asyncio.DefaultEventLoopPolicy()
@@ -77,7 +77,7 @@ def sample_graph_element():
 
     return DocumentElement(
         type="graph",
-        text="Bar chart titled 'Quarterly Revenue 2020-2023'. X-axis: quarters Q1-Q4. Y-axis: Revenue in billions USD. Q3 2023 bar shows $23.35B. Clear upward trend from $6B in Q1 2020 to $23.35B in Q3 2023.",
+        text="Bar chart titled 'Quarterly Revenue 2020-2023'. X-axis: quarters Q1-Q4. Y-axis: Revenue in billions USD. Q3 2023 bar shows $23.35B. Clear upward trend from $6B in Q1 2020 to $23.35B [...]",
         source_document="tesla_investor_deck.pdf",
         page_number=8,
         content_hash="graph789xyz",
@@ -155,7 +155,9 @@ def mock_parser(sample_document_element, sample_table_element):
     parser = MagicMock()
     parser.name = "mock_unstructured"
     parser.parse = AsyncMock(return_value=[sample_document_element])
-    parser.parse_batch = AsyncMock(return_value=[sample_document_element, sample_table_element])
+    parser.parse_batch = AsyncMock(
+        return_value=[sample_document_element, sample_table_element]
+    )
     return parser
 
 
