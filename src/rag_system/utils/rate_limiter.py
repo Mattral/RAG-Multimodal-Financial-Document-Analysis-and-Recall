@@ -45,7 +45,10 @@ class TokenBucket:
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
                     return False
-                wait = min((tokens - self._tokens) / self.refill_rate, remaining, 0.1)
+                if self.refill_rate <= 0:
+                    wait = min(remaining, 0.1)
+                else:
+                    wait = min((tokens - self._tokens) / self.refill_rate, remaining, 0.1)
                 await asyncio.sleep(wait)
 
     @property
@@ -93,7 +96,11 @@ class AsyncRateLimiter:
         if not global_ok:
             raise APIRateLimitError(
                 "Global rate limit exceeded",
-                retry_after=int(1.0 / self._global_bucket.refill_rate),
+                retry_after=(
+                    int(1.0 / self._global_bucket.refill_rate)
+                    if self._global_bucket.refill_rate > 0
+                    else None
+                ),
             )
 
         # Check per-tenant
@@ -101,7 +108,7 @@ class AsyncRateLimiter:
         if not tenant_ok:
             raise APIRateLimitError(
                 f"Per-tenant rate limit exceeded for tenant={tenant_id}",
-                retry_after=int(1.0 / self._rps),
+                retry_after=int(1.0 / self._rps) if self._rps > 0 else None,
                 api_name="rag-query",
             )
 

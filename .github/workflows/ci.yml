@@ -60,18 +60,13 @@ jobs:
             pydantic pydantic-settings structlog httpx numpy \
             hypothesis pypdf fastapi python-multipart qdrant-client
 
-      - name: Run unit tests
+      - name: Run unit + integration tests (combined coverage)
         run: |
-          pytest tests/unit/ -v \
+          pytest tests/unit/ tests/integration/ -v --timeout=30 \
             --cov=src/rag_system \
             --cov-report=xml \
             --cov-report=term-missing \
             --cov-fail-under=70
-        env:
-          ENVIRONMENT: testing
-
-      - name: Run integration tests
-        run: pytest tests/integration/ -v --timeout=30
         env:
           ENVIRONMENT: testing
 
