@@ -91,8 +91,10 @@ class TestRedisRateLimiter:
     @pytest.mark.asyncio
     async def test_fails_open_on_exception(self):
         lim = RedisRateLimiter("redis://localhost:6379/0")
-        mc = AsyncMock(); mc.eval = AsyncMock(side_effect=Exception("err"))
-        with patch.object(lim, "_get_client", return_value=mc): assert await lim.is_allowed("t1") is True
+        mc = AsyncMock()
+        mc.eval = AsyncMock(side_effect=Exception("err"))
+        with patch.object(lim, "_get_client", return_value=mc):
+            assert await lim.is_allowed("t1") is True
     @pytest.mark.asyncio
     async def test_check_or_raise_passes(self):
         lim = RedisRateLimiter("redis://localhost:6379/0")
